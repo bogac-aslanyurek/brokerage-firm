@@ -1,0 +1,1 @@
+INSERT INTO t_customer (id, username, password) values (1, 'admin', '{bcrypt}$2a$10$jlkRCiF7ynr.NJTacYmzVunCJC4Vr5u6kS82eAKWtPWZ5eKwYEQdu');
