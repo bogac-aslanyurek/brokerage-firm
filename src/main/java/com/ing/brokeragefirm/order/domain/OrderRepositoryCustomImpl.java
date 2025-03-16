@@ -22,7 +22,7 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
         final Root<Order> root = query.from(Order.class);
 
         if (customerId != null) {
-            query.where(cb.equal(root.get("customerId"), customerId));
+            query.where(cb.equal(root.get("customer").get("id"), customerId));
         }
         if (startDate != null && endDate != null) {
             query.where(cb.between(root.get("createDate"), startDate, endDate));

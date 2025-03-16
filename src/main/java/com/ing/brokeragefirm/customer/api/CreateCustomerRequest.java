@@ -1,4 +1,6 @@
 package com.ing.brokeragefirm.customer.api;
 
-public record CreateCustomerRequest (String username, String password) {
+import javax.validation.constraints.NotNull;
+
+public record CreateCustomerRequest (@NotNull String name, @NotNull String username, @NotNull String password) {
 }

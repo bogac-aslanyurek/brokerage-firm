@@ -26,9 +26,15 @@ public class OrderController {
         return ResponseEntity.ok(orderService.listOrders(listOrderRequest.customerId(), listOrderRequest.startDate(), listOrderRequest.endDate()));
     }
 
-    @DeleteMapping("/{id}")
+    @PostMapping("/{id}/cancel")
     public ResponseEntity<Void> cancelOrder(@PathVariable Long id) {
         orderService.cancelOrder(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/match")
+    public ResponseEntity<Void>  matchOrder(@PathVariable Long id) {
+        orderService.matchOrder(id);
         return ResponseEntity.noContent().build();
     }
 }

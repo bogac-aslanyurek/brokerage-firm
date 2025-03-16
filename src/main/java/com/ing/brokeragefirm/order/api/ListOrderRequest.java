@@ -1,6 +1,6 @@
 package com.ing.brokeragefirm.order.api;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
-public record ListOrderRequest(Long customerId, LocalDateTime startDate, LocalDateTime endDate) {
+public record ListOrderRequest(Long customerId, LocalDate startDate, LocalDate endDate) {
 }

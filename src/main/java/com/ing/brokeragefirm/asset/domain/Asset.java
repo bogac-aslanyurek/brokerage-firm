@@ -1,6 +1,7 @@
 package com.ing.brokeragefirm.asset.domain;
 
 
+import com.ing.brokeragefirm.customer.domain.Customer;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,13 +16,17 @@ public class Asset {
     @Column(name = "ID")
     private Long id;
 
-    @Column(name = "CUSTOMER_ID")
-    private Long customerId;
+    @JoinColumn(name = "CUSTOMER_ID", referencedColumnName = "ID")
+    @ManyToOne(fetch = FetchType.EAGER)
+    private Customer customer;
 
     @Column(name = "ASSET_NAME")
     private String assetName;
 
     @Column(name = "SIZE")
     private Double size;
+
+    @Column(name = "USABLE_SIZE")
+    private Double usableSize;
 
 }

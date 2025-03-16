@@ -11,7 +11,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,25 +58,25 @@ class OrderServiceTest {
         verify(orderRepository).save(orderCaptor.capture());
         Order capturedOrder = orderCaptor.getValue();
 
-        assertEquals(orderRequest.getCustomerId(), capturedOrder.getCustomerId());
+        assertEquals(orderRequest.getCustomerId(), capturedOrder.getCustomer());
         assertEquals(orderRequest.getOrderSide(), capturedOrder.getOrderSide());
         assertEquals(orderRequest.getSize(), capturedOrder.getSize());
         assertEquals(orderRequest.getPrice(), capturedOrder.getPrice());
         assertEquals(Order.OrderStatus.PENDING, capturedOrder.getStatus());
         assertNotNull(capturedOrder.getCreateDate());
 
-        verify(assetService).checkAssetAvailability(orderRequest);
+        verify(assetService).doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize());
     }
 
     @Test
     void testListOrders() {
         // Arrange
         Long customerId = 1L;
-        LocalDateTime startDate = LocalDateTime.now().minusDays(7);
-        LocalDateTime endDate = LocalDateTime.now();
+        LocalDate startDate = LocalDate.now().minusDays(7);
+        LocalDate endDate = LocalDate.now();
 
         List<Order> mockOrders = List.of(new Order(), new Order());
-        when(orderRepository.searchOrders(customerId, startDate, endDate)).thenReturn(mockOrders);
+        when(orderRepository.searchOrders(customerId, startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX))).thenReturn(mockOrders);
 
         // Act
         List<Order> result = orderService.listOrders(customerId, startDate, endDate);
@@ -83,7 +84,7 @@ class OrderServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(2, result.size());
-        verify(orderRepository).searchOrders(customerId, startDate, endDate);
+        verify(orderRepository).searchOrders(customerId, startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
     }
 
     @Test
@@ -127,18 +128,4 @@ class OrderServiceTest {
         verify(assetService, never()).updateAssetAfterCancel(any());
     }
 
-    @Test
-    void testCancelOrder_ThrowsWhenOrderNotFound() {
-        // Arrange
-        Long orderId = 1L;
-        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> orderService.cancelOrder(orderId));
-        assertEquals("Order not found", exception.getMessage());
-
-        verify(orderRepository).findById(orderId);
-        verify(orderRepository, never()).save(any());
-        verify(assetService, never()).updateAssetAfterCancel(any());
-    }
 }

@@ -1,5 +1,6 @@
 package com.ing.brokeragefirm.order.domain;
 
+import com.ing.brokeragefirm.customer.domain.Customer;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,8 +17,9 @@ public class Order {
     @Column(name = "ID")
     private Long id;
 
-    @Column(name = "CUSTOMER_ID")
-    private Long customerId;
+    @JoinColumn(name = "CUSTOMER_ID", referencedColumnName = "ID")
+    @ManyToOne(fetch = FetchType.EAGER)
+    private Customer customer;
 
     @Column(name = "ASSET_NAME")
     private String assetName;

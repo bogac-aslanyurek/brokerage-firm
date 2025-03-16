@@ -2,6 +2,7 @@ package com.ing.brokeragefirm.asset.service;
 
 import com.ing.brokeragefirm.asset.domain.Asset;
 import com.ing.brokeragefirm.asset.domain.AssetRepository;
+import com.ing.brokeragefirm.customer.domain.Customer;
 import com.ing.brokeragefirm.order.api.OrderRequest;
 import com.ing.brokeragefirm.order.domain.Order;
 import jakarta.persistence.EntityManager;
@@ -54,7 +55,7 @@ class AssetServiceTest {
     }
 
     @Test
-    void checkAssetAvailability_ShouldThrowException_WhenCustomerIdIsNull() {
+    void doReserve_ShouldThrowException_WhenCustomerIdIsNull() {
         when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
         when(criteriaBuilder.createQuery(Asset.class)).thenReturn(criteriaQuery);
         when(criteriaQuery.from(Asset.class)).thenReturn(root);
@@ -64,7 +65,7 @@ class AssetServiceTest {
         orderRequest.setCustomerId(null);
 
         Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.checkAssetAvailability(orderRequest));
+                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
 
         assertEquals("CustomerId should be provided", exception.getMessage());
     }
@@ -81,7 +82,7 @@ class AssetServiceTest {
         orderRequest.setAssetName(null);
 
         Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.checkAssetAvailability(orderRequest));
+                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
 
         assertEquals("AssetName should be provided", exception.getMessage());
     }
@@ -97,13 +98,13 @@ class AssetServiceTest {
         when(typedQuery.getResultList()).thenReturn(Collections.emptyList());
 
         Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.checkAssetAvailability(orderRequest));
+                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
 
         assertEquals("Customer does not have any TRY asset", exception.getMessage());
     }
 
     @Test
-    void checkAssetAvailability_ShouldThrowException_WhenBuyingAndNoSufficientFunds() {
+    void doNoSufficientFunds() {
 
         when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
         when(criteriaBuilder.createQuery(Asset.class)).thenReturn(criteriaQuery);
@@ -123,7 +124,7 @@ class AssetServiceTest {
         when(typedQuery.getResultList()).thenReturn(Collections.singletonList(tryAsset));
 
         Exception exception = assertThrows(IllegalArgumentException.class,
-                () -> assetService.checkAssetAvailability(orderRequest));
+                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
 
         assertEquals("Insufficient TRY asset for the order", exception.getMessage());
     }
@@ -146,10 +147,12 @@ class AssetServiceTest {
     void updateAssetAfterCancel_ShouldThrowException_WhenCustomerDoesNotOwnAsset() {
 
         Order order = new Order();
-        order.setCustomerId(1L);
+        Customer customer = new Customer();
+        customer.setId(1L);
+        order.setCustomer(customer);
         order.setAssetName("Gold");
 
-        when(assetRepository.findByCustomerIdAndAssetName(order.getCustomerId(), order.getAssetName())).thenReturn(null);
+        when(assetRepository.findByCustomerIdAndAssetName(order.getCustomer().getId(), order.getAssetName())).thenReturn(null);
 
         Exception exception = assertThrows(RuntimeException.class,
                 () -> assetService.updateAssetAfterCancel(order));
@@ -161,14 +164,16 @@ class AssetServiceTest {
     void updateAssetAfterCancel_ShouldUpdateAssetSize() {
 
         Order order = new Order();
-        order.setCustomerId(1L);
+        Customer customer = new Customer();
+        customer.setId(1L);
+        order.setCustomer(customer);
         order.setAssetName("Gold");
         order.setSize(5.0);
 
         Asset mockAsset = new Asset();
         mockAsset.setSize(10.0);
 
-        when(assetRepository.findByCustomerIdAndAssetName(order.getCustomerId(), order.getAssetName())).thenReturn(mockAsset);
+        when(assetRepository.findByCustomerIdAndAssetName(order.getCustomer().getId(), order.getAssetName())).thenReturn(mockAsset);
 
         assetService.updateAssetAfterCancel(order);
 
