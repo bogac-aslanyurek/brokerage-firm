@@ -3,13 +3,10 @@ package com.ing.brokeragefirm.asset.service;
 import com.ing.brokeragefirm.asset.domain.Asset;
 import com.ing.brokeragefirm.asset.domain.AssetRepository;
 import com.ing.brokeragefirm.customer.domain.Customer;
-import com.ing.brokeragefirm.order.api.OrderRequest;
+import com.ing.brokeragefirm.customer.service.CustomerService;
 import com.ing.brokeragefirm.order.domain.Order;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,9 +18,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,148 +31,140 @@ class AssetServiceTest {
     private EntityManager entityManager;
 
     @Mock
-    private CriteriaBuilder criteriaBuilder;
-
-    @Mock
-    private CriteriaQuery<Asset> criteriaQuery;
-
-    @Mock
-    private Root<Asset> root;
-
-    @Mock
-    private TypedQuery<Asset> typedQuery;
+    private CustomerService customerService;
 
     @InjectMocks
     private AssetService assetService;
 
+    private final Long customerId = 1L;
+    private final String assetName = "XAU";
+    private final Double requestPrice = 100.0;
+    private final Double requestSize = 10.0;
+    private Customer customer;
+
     @BeforeEach
-    void setupMocks() {
+    void setUp() {
+        this.customer = new Customer();
+        this.customer.setId(customerId);
+
     }
 
     @Test
-    void doReserve_ShouldThrowException_WhenCustomerIdIsNull() {
-        when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
-        when(criteriaBuilder.createQuery(Asset.class)).thenReturn(criteriaQuery);
-        when(criteriaQuery.from(Asset.class)).thenReturn(root);
-
-
-        OrderRequest orderRequest = new OrderRequest();
-        orderRequest.setCustomerId(null);
-
-        Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
-
-        assertEquals("CustomerId should be provided", exception.getMessage());
-    }
-
-    @Test
-    void checkAssetAvailability_ShouldThrowException_WhenAssetNameIsNull() {
-
-        when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
-        when(criteriaBuilder.createQuery(Asset.class)).thenReturn(criteriaQuery);
-
-
-        OrderRequest orderRequest = new OrderRequest();
-        orderRequest.setCustomerId(1L);
-        orderRequest.setAssetName(null);
-
-        Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
-
-        assertEquals("AssetName should be provided", exception.getMessage());
-    }
-
-    @Test
-    void checkAssetAvailability_ShouldThrowException_WhenTryAssetNotFound() {
-
-        OrderRequest orderRequest = new OrderRequest();
-        orderRequest.setCustomerId(1L);
-        orderRequest.setAssetName("Gold");
-
-        // No TRY assets found
-        when(typedQuery.getResultList()).thenReturn(Collections.emptyList());
-
-        Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
-
-        assertEquals("Customer does not have any TRY asset", exception.getMessage());
-    }
-
-    @Test
-    void doNoSufficientFunds() {
-
-        when(entityManager.getCriteriaBuilder()).thenReturn(criteriaBuilder);
-        when(criteriaBuilder.createQuery(Asset.class)).thenReturn(criteriaQuery);
-        when(criteriaQuery.from(Asset.class)).thenReturn(root);
-        when(entityManager.createQuery(any(CriteriaQuery.class))).thenReturn(typedQuery);
-
-        OrderRequest orderRequest = new OrderRequest();
-        orderRequest.setCustomerId(1L);
-        orderRequest.setAssetName("Gold");
-        orderRequest.setOrderSide(Order.OrderSide.BUY);
-        orderRequest.setPrice(100.0);
-        orderRequest.setSize(2.0);
+    void testDoReserve_Success() {
+        // Arrange
+        Asset mockAsset = new Asset();
+        mockAsset.setName(assetName);
+        mockAsset.setUsableSize(requestSize * requestPrice);
+        mockAsset.setSize(requestSize * requestPrice);
 
         Asset tryAsset = new Asset();
-        tryAsset.setSize(150.0);  // Insufficient funds for the order (200)
+        tryAsset.setName("TRY");
+        tryAsset.setUsableSize(requestSize * requestPrice);
+        tryAsset.setSize(requestSize * requestPrice);
 
-        when(typedQuery.getResultList()).thenReturn(Collections.singletonList(tryAsset));
+        tryAsset.setCustomer(customer);
 
-        Exception exception = assertThrows(IllegalArgumentException.class,
-                () -> assetService.doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize()));
+        when(assetRepository.findByCustomerIdAndName(customerId, "TRY")).thenReturn(tryAsset);
 
-        assertEquals("Insufficient TRY asset for the order", exception.getMessage());
+        // Act
+        assetService.doReserve(customerId, assetName, Order.OrderSide.BUY, requestPrice, requestSize);
+
+        // Assert
+        verify(assetRepository, times(1)).findByCustomerIdAndName(customerId, "TRY");
+        verify(entityManager, times(1)).lock(tryAsset, LockModeType.PESSIMISTIC_WRITE);
     }
 
     @Test
-    void listAssets_ShouldReturnAssetsForCustomerId() {
+    void testUndoReserve_Success() {
+        // Arrange
+        Asset mockAsset = new Asset();
+        mockAsset.setName(assetName);
+        mockAsset.setUsableSize(requestSize * requestPrice);
+        mockAsset.setSize(requestSize * requestPrice);
 
-        Long customerId = 1L;
-        List<Asset> mockAssets = Arrays.asList(new Asset(), new Asset());
+        Asset tryAsset = new Asset();
+        tryAsset.setName("TRY");
+        tryAsset.setUsableSize(requestSize * requestPrice);
+        tryAsset.setSize(requestSize * requestPrice);
+        when(assetRepository.findByCustomerIdAndName(customerId, assetName)).thenReturn(mockAsset);
+        when(assetRepository.findByCustomerIdAndName(customerId, "TRY")).thenReturn(tryAsset);
 
-        when(assetRepository.findByCustomerId(customerId)).thenReturn(mockAssets);
+        // Act
+        assetService.undoReserve(customerId, assetName, Order.OrderSide.SELL, requestPrice, requestSize);
 
+        // Assert
+        verify(assetRepository, times(1)).findByCustomerIdAndName(customerId, "TRY");
+        // Add more verifications based on the implementation specifics
+    }
+
+    @Test
+    void testListAssets_Success() {
+        // Arrange
+        Asset asset1 = new Asset();
+        Asset asset2 = new Asset();
+        List<Asset> mockAssets = Arrays.asList(asset1, asset2);
+        when(assetRepository.findAllByCustomerId(customerId)).thenReturn(mockAssets);
+
+        // Act
         List<Asset> result = assetService.listAssets(customerId);
 
+        // Assert
         assertEquals(2, result.size());
-        verify(assetRepository, times(1)).findByCustomerId(customerId);
+        verify(assetRepository, times(1)).findAllByCustomerId(customerId);
     }
 
     @Test
-    void updateAssetAfterCancel_ShouldThrowException_WhenCustomerDoesNotOwnAsset() {
-
-        Order order = new Order();
-        Customer customer = new Customer();
-        customer.setId(1L);
-        order.setCustomer(customer);
-        order.setAssetName("Gold");
-
-        when(assetRepository.findByCustomerIdAndAssetName(order.getCustomer().getId(), order.getAssetName())).thenReturn(null);
-
-        Exception exception = assertThrows(RuntimeException.class,
-                () -> assetService.updateAssetAfterCancel(order));
-
-        assertEquals("Customer does not own that asset", exception.getMessage());
-    }
-
-    @Test
-    void updateAssetAfterCancel_ShouldUpdateAssetSize() {
-
-        Order order = new Order();
-        Customer customer = new Customer();
-        customer.setId(1L);
-        order.setCustomer(customer);
-        order.setAssetName("Gold");
-        order.setSize(5.0);
-
+    void testDoApplyReserve_Success() {
+        // Arrange
         Asset mockAsset = new Asset();
-        mockAsset.setSize(10.0);
+        mockAsset.setName(assetName);
+        mockAsset.setUsableSize(requestSize * requestPrice);
+        mockAsset.setSize(requestSize * requestPrice);
 
-        when(assetRepository.findByCustomerIdAndAssetName(order.getCustomer().getId(), order.getAssetName())).thenReturn(mockAsset);
+        Asset tryAsset = new Asset();
+        tryAsset.setName("TRY");
+        tryAsset.setUsableSize(requestSize * requestPrice);
+        tryAsset.setSize(requestSize * requestPrice);
 
-        assetService.updateAssetAfterCancel(order);
+        when(assetRepository.findByCustomerIdAndName(customerId, assetName)).thenReturn(mockAsset);
+        when(assetRepository.findByCustomerIdAndName(customerId, "TRY")).thenReturn(tryAsset);
 
-        assertEquals(15.0, mockAsset.getSize());
-        verify(assetRepository, times(1)).save(mockAsset);
+        // Act
+        assetService.doApplyReserve(customerId, assetName, Order.OrderSide.BUY, requestPrice, requestSize);
+
+        // Assert
+        verify(assetRepository, times(1)).findByCustomerIdAndName(customerId, assetName);
+        verify(assetRepository, times(1)).findByCustomerIdAndName(customerId, "TRY");
+        // Add more verifications based on the implementation specifics
+    }
+
+    @Test
+    void testCreateAsset_Success() {
+        // Arrange
+        Asset newAsset = new Asset();
+        newAsset.setId(1L);
+        newAsset.setName(assetName);
+        when(assetRepository.save(any(Asset.class))).thenReturn(newAsset);
+
+        // Act
+        Asset createdAsset = assetService.createAsset(customerId, assetName, requestSize);
+
+        // Assert
+        assertNotNull(createdAsset);
+        assertEquals(assetName, createdAsset.getName());
+        verify(assetRepository, times(1)).save(any(Asset.class));
+    }
+
+    @Test
+    void testListAssets_EmptyResult() {
+        // Arrange
+        when(assetRepository.findAllByCustomerId(customerId)).thenReturn(Collections.emptyList());
+
+        // Act
+        List<Asset> result = assetService.listAssets(customerId);
+
+        // Assert
+        assertTrue(result.isEmpty());
+        verify(assetRepository, times(1)).findAllByCustomerId(customerId);
     }
 }

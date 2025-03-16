@@ -8,9 +8,6 @@ import com.ing.brokeragefirm.exception.ApiException;
 import com.ing.brokeragefirm.order.domain.Order;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,32 +24,29 @@ public class AssetService {
 
     @Transactional
     public void doReserve(Long customerId, String assetName, Order.OrderSide orderSide, Double requestPrice, Double requestSize) {
-        if (customerId == null) {
-            throw new ApiException(1000, "CustomerId should be provided");
-        }
-
-        if (assetName == null) {
-            throw new ApiException(1001, "AssetName should be provided");
-        }
-
         final Asset tryAsset = getAsset(customerId, "TRY");
 
         if (tryAsset == null) {
             throw new ApiException(1002, "Customer does not have any {0} asset", "TRY");
         }
 
+        Double orderTotalPrice = requestPrice * requestSize;
+
         if (Order.OrderSide.BUY.equals(orderSide)) {
 
-            Double orderTotalPrice = requestPrice * requestSize;
-            if (tryAsset.getSize().compareTo(orderTotalPrice) < 0) {
-                throw new ApiException(1003, "Insufficient TRY asset for the order");
+            if (tryAsset.getUsableSize().compareTo(orderTotalPrice) < 0) {
+                throw new ApiException(1003, "Insufficient {0} asset for the order", "TRY");
             }
 
             em.lock(tryAsset, LockModeType.PESSIMISTIC_WRITE);
-            tryAsset.setUsableSize(tryAsset.getSize() - orderTotalPrice);
+            tryAsset.setUsableSize(tryAsset.getUsableSize() - orderTotalPrice);
             assetRepository.save(tryAsset);
 
         } else if (Order.OrderSide.SELL.equals(orderSide)) {
+
+            if (assetName.equals("TRY")) {
+                throw new ApiException(1006, "Invalid order, cannot sell TRY asset");
+            }
 
             final Asset orderAsset = getAsset(customerId, assetName);
 
@@ -60,33 +54,30 @@ public class AssetService {
                 throw new ApiException(1002, "Customer does not have any {0} asset", assetName);
             }
 
+            if (orderAsset.getUsableSize().compareTo(orderTotalPrice) < 0) {
+                throw new ApiException(1003, "Insufficient {0} asset for the order", orderAsset.getName());
+            }
+
             em.lock(orderAsset, LockModeType.PESSIMISTIC_WRITE);
-            orderAsset.setUsableSize(orderAsset.getSize() - requestSize);
+            orderAsset.setUsableSize(orderAsset.getUsableSize() - orderTotalPrice);
             assetRepository.save(orderAsset);
         }
     }
 
     @Transactional
     public void undoReserve(Long customerId, String assetName, Order.OrderSide orderSide, Double requestPrice, Double requestSize) {
-        if (customerId == null) {
-            throw new ApiException(1000, "CustomerId should be provided");
-        }
-
-        if (assetName == null) {
-            throw new ApiException(1001, "AssetName should be provided");
-        }
-
         final Asset tryAsset = getAsset(customerId, "TRY");
 
         if (tryAsset == null) {
             throw new ApiException(1002, "Customer does not have any {0} asset", "TRY");
         }
 
-        if (Order.OrderSide.BUY.equals(orderSide)) {
+        Double orderTotalPrice = requestPrice * requestSize;
 
-            Double orderTotalPrice = requestPrice * requestSize;
+
+        if (Order.OrderSide.BUY.equals(orderSide)) {
             em.lock(tryAsset, LockModeType.PESSIMISTIC_WRITE);
-            tryAsset.setUsableSize(tryAsset.getSize() + orderTotalPrice);
+            tryAsset.setUsableSize(tryAsset.getUsableSize() + orderTotalPrice);
             assetRepository.save(tryAsset);
 
         } else if (Order.OrderSide.SELL.equals(orderSide)) {
@@ -98,50 +89,31 @@ public class AssetService {
             }
 
             em.lock(orderAsset, LockModeType.PESSIMISTIC_WRITE);
-            orderAsset.setUsableSize(orderAsset.getSize() + requestSize);
+            orderAsset.setUsableSize(orderAsset.getUsableSize() + orderTotalPrice);
             assetRepository.save(orderAsset);
         }
     }
 
 
     private Asset getAsset(Long customerId, String assetName) {
-        final CriteriaBuilder cb = em.getCriteriaBuilder();
-        final CriteriaQuery<Asset> query = cb.createQuery(Asset.class);
-        final Root<Asset> root = query.from(Asset.class);
-
-        query.where(
-                cb.and(
-                        cb.equal(root.get("customer").get("id"), customerId),
-                        cb.equal(root.get("assetName"), assetName)
-                )
-        );
-
-        final List<Asset> orderAssetResult = em.createQuery(query).getResultList();
-        return !orderAssetResult.isEmpty() ? orderAssetResult.get(0) : null;
+        return assetRepository.findByCustomerIdAndName(customerId, assetName);
     }
 
     @Transactional
     public List<Asset> listAssets(Long customerId) {
-        return assetRepository.findByCustomerId(customerId);
+        return assetRepository.findAllByCustomerId(customerId);
     }
 
     public void doApplyReserve(Long customerId, String assetName, Order.OrderSide orderSide, Double requestPrice, Double requestSize) {
-        if (customerId == null) {
-            throw new ApiException(1000, "CustomerId should be provided");
-        }
-
-        if (assetName == null) {
-            throw new ApiException(1001, "AssetName should be provided");
-        }
-
         final Asset tryAsset = getAsset(customerId, "TRY");
 
         if (tryAsset == null) {
             throw new ApiException(1002, "Customer does not have any {0} asset", "TRY");
         }
 
+        Double orderTotalPrice = requestPrice * requestSize;
+
         if (Order.OrderSide.BUY.equals(orderSide)) {
-            Double orderTotalPrice = requestPrice * requestSize;
 
             em.lock(tryAsset, LockModeType.PESSIMISTIC_WRITE);
             tryAsset.setSize(tryAsset.getSize() - orderTotalPrice);
@@ -155,23 +127,24 @@ public class AssetService {
                 em.lock(orderAsset, LockModeType.PESSIMISTIC_WRITE);
             }
 
-            orderAsset.setSize(orderAsset.getSize() + requestSize);
-            orderAsset.setUsableSize(orderAsset.getUsableSize() + requestSize);
+            orderAsset.setSize(orderAsset.getSize() + orderTotalPrice);
+            orderAsset.setUsableSize(orderAsset.getUsableSize() + orderTotalPrice);
             assetRepository.save(orderAsset);
 
         } else if (Order.OrderSide.SELL.equals(orderSide)) {
-            Double orderTotalPrice = requestPrice * requestSize;
-
-            em.lock(tryAsset, LockModeType.PESSIMISTIC_WRITE);
-            tryAsset.setSize(tryAsset.getSize() + orderTotalPrice);
-            tryAsset.setUsableSize(tryAsset.getUsableSize() + orderTotalPrice);
-            assetRepository.save(tryAsset);
-
             Asset orderAsset = getAsset(customerId, assetName);
             if (orderAsset == null) {
                 throw new ApiException(1002, "Customer does not have any {0} asset", assetName);
             }
-            orderAsset.setSize(orderAsset.getSize() - requestSize);
+
+            em.lock(tryAsset, LockModeType.PESSIMISTIC_WRITE);
+            em.lock(orderAsset, LockModeType.PESSIMISTIC_WRITE);
+
+            tryAsset.setSize(tryAsset.getSize() + orderTotalPrice);
+            tryAsset.setUsableSize(tryAsset.getUsableSize() + orderTotalPrice);
+            assetRepository.save(tryAsset);
+
+            orderAsset.setSize(orderAsset.getSize() - orderTotalPrice);
             assetRepository.save(orderAsset);
 
         }
@@ -182,7 +155,7 @@ public class AssetService {
         Customer customer = new Customer();
         customer.setId(customerId);
         asset.setCustomer(customer);
-        asset.setAssetName(assetName);
+        asset.setName(assetName);
         asset.setSize(0.0);
         asset.setUsableSize(0.0);
         return asset;

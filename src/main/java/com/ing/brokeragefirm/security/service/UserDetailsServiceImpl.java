@@ -2,6 +2,7 @@ package com.ing.brokeragefirm.security.service;
 
 import com.ing.brokeragefirm.security.domain.AuthPrincipal;
 import com.ing.brokeragefirm.security.domain.AuthPrincipalRepository;
+import com.ing.brokeragefirm.security.model.AuthenticationToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;

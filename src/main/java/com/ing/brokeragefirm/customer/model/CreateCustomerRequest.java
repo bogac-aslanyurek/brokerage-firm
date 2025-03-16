@@ -1,4 +1,4 @@
-package com.ing.brokeragefirm.customer.api;
+package com.ing.brokeragefirm.customer.model;
 
 import javax.validation.constraints.NotNull;
 

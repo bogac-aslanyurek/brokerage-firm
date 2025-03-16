@@ -19,10 +19,10 @@ public class CustomerService {
 
     public Customer getCustomer(Long customerId) {
         if (customerId == null) {
-            throw new ApiException(1000, "Customer not found");
+            throw new ApiException(1001, "Customer not found");
         }
         return customerRepository.findById(customerId)
-                .orElseThrow(() -> new ApiException(1000, "Customer not found"));
+                .orElseThrow(() -> new ApiException(1001, "Customer not found"));
     }
 
     public Customer createCustomer(String name) {

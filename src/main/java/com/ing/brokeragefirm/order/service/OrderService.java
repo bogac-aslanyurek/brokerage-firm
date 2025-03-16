@@ -3,16 +3,16 @@ package com.ing.brokeragefirm.order.service;
 import com.ing.brokeragefirm.asset.service.AssetService;
 import com.ing.brokeragefirm.customer.domain.Customer;
 import com.ing.brokeragefirm.exception.ApiException;
-import com.ing.brokeragefirm.order.api.OrderRequest;
 import com.ing.brokeragefirm.order.domain.Order;
 import com.ing.brokeragefirm.order.domain.OrderRepository;
+import com.ing.brokeragefirm.order.model.ListOrderRequest;
+import com.ing.brokeragefirm.order.model.OrderRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -43,8 +43,8 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    public List<Order> listOrders(Long customerId, LocalDate startDate, LocalDate endDate) {
-        return orderRepository.searchOrders(customerId, startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+    public List<Order> listOrders(ListOrderRequest request) {
+        return orderRepository.searchOrders(request);
     }
 
     @Transactional
@@ -57,11 +57,12 @@ public class OrderService {
 
             assetService.undoReserve(orderRequest.getCustomer().getId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize());
         } else {
-            throw new ApiException(1003, "Only PENDING orders can be canceled");
+            throw new ApiException(1004, "Only PENDING orders can be canceled");
         }
     }
 
     @Transactional
+    @PreAuthorize( "hasAuthority('ADMIN')")
     public void matchOrder(Long id) {
         Order orderRequest = orderRepository.findById(id)
                 .orElseThrow(() -> new ApiException(1005, "Order not found"));

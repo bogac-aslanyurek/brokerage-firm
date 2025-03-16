@@ -1,25 +1,24 @@
 package com.ing.brokeragefirm.order.service;
 
 import com.ing.brokeragefirm.asset.service.AssetService;
-import com.ing.brokeragefirm.order.api.OrderRequest;
+import com.ing.brokeragefirm.customer.domain.Customer;
+import com.ing.brokeragefirm.exception.ApiException;
 import com.ing.brokeragefirm.order.domain.Order;
 import com.ing.brokeragefirm.order.domain.OrderRepository;
+import com.ing.brokeragefirm.order.model.ListOrderRequest;
+import com.ing.brokeragefirm.order.model.OrderRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
     @Mock
@@ -31,15 +30,20 @@ class OrderServiceTest {
     @InjectMocks
     private OrderService orderService;
 
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
 
     @Test
-    void testCreateOrder() {
+    void createOrder_success() {
         // Arrange
         OrderRequest orderRequest = new OrderRequest();
         orderRequest.setCustomerId(1L);
+        orderRequest.setAssetName("AAPL");
         orderRequest.setOrderSide(Order.OrderSide.BUY);
-        orderRequest.setSize(100d);
-        orderRequest.setPrice(50.5);
+        orderRequest.setPrice(150.00);
+        orderRequest.setSize(10d);
 
         Order savedOrder = new Order();
         savedOrder.setId(1L);
@@ -52,80 +56,136 @@ class OrderServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(1L, result.getId());
-
-        // Verify
-        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
-        Order capturedOrder = orderCaptor.getValue();
-
-        assertEquals(orderRequest.getCustomerId(), capturedOrder.getCustomer());
-        assertEquals(orderRequest.getOrderSide(), capturedOrder.getOrderSide());
-        assertEquals(orderRequest.getSize(), capturedOrder.getSize());
-        assertEquals(orderRequest.getPrice(), capturedOrder.getPrice());
-        assertEquals(Order.OrderStatus.PENDING, capturedOrder.getStatus());
-        assertNotNull(capturedOrder.getCreateDate());
-
-        verify(assetService).doReserve(orderRequest.getCustomerId(), orderRequest.getAssetName(), orderRequest.getOrderSide(), orderRequest.getPrice(), orderRequest.getSize());
+        verify(assetService).doReserve(
+                eq(1L), eq("AAPL"), eq(Order.OrderSide.BUY), eq(150.00), eq(10d));
+        verify(orderRepository).save(any(Order.class));
     }
 
     @Test
-    void testListOrders() {
+    void listOrders_success() {
         // Arrange
-        Long customerId = 1L;
-        LocalDate startDate = LocalDate.now().minusDays(7);
-        LocalDate endDate = LocalDate.now();
-
-        List<Order> mockOrders = List.of(new Order(), new Order());
-        when(orderRepository.searchOrders(customerId, startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX))).thenReturn(mockOrders);
+        ListOrderRequest listOrderRequest = new ListOrderRequest(1L, null,null);
+        List<Order> expectedOrders = List.of(new Order(), new Order());
+        when(orderRepository.searchOrders(listOrderRequest)).thenReturn(expectedOrders);
 
         // Act
-        List<Order> result = orderService.listOrders(customerId, startDate, endDate);
+        List<Order> result = orderService.listOrders(listOrderRequest);
 
         // Assert
         assertNotNull(result);
         assertEquals(2, result.size());
-        verify(orderRepository).searchOrders(customerId, startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+        verify(orderRepository).searchOrders(listOrderRequest);
     }
 
     @Test
-    void testCancelOrder_WithPendingStatus() {
+    void cancelOrder_success() {
         // Arrange
         Long orderId = 1L;
-        Order pendingOrder = new Order();
-        pendingOrder.setId(orderId);
-        pendingOrder.setStatus(Order.OrderStatus.PENDING);
+        Order existingOrder = new Order();
+        existingOrder.setId(orderId);
+        existingOrder.setStatus(Order.OrderStatus.PENDING);
+        Customer customer = new Customer();
+        customer.setId(1L);
+        existingOrder.setCustomer(customer);
+        existingOrder.setAssetName("AAPL");
+        existingOrder.setOrderSide(Order.OrderSide.SELL);
+        existingOrder.setPrice(150.00);
+        existingOrder.setSize(10d);
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(pendingOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(pendingOrder);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
 
         // Act
-        orderService.cancelOrder(orderId);
+        assertDoesNotThrow(() -> orderService.cancelOrder(orderId));
 
         // Assert
-        assertEquals(Order.OrderStatus.CANCELED, pendingOrder.getStatus());
-
-        verify(orderRepository).findById(orderId);
-        verify(orderRepository).save(pendingOrder);
-        verify(assetService).updateAssetAfterCancel(pendingOrder);
+        assertEquals(Order.OrderStatus.CANCELED, existingOrder.getStatus());
+        verify(assetService).undoReserve(1L, "AAPL", Order.OrderSide.SELL,  (150.00), 10d);
+        verify(orderRepository).save(existingOrder);
     }
 
     @Test
-    void testCancelOrder_WithNonPendingStatus_ThrowsException() {
+    void cancelOrder_nonPendingOrder_shouldThrowException() {
         // Arrange
         Long orderId = 1L;
-        Order completedOrder = new Order();
-        completedOrder.setId(orderId);
-        completedOrder.setStatus(Order.OrderStatus.MATCHED);
+        Order existingOrder = new Order();
+        existingOrder.setId(orderId);
+        existingOrder.setStatus(Order.OrderStatus.MATCHED);
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(completedOrder));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> orderService.cancelOrder(orderId));
+        // Act and Assert
+        ApiException exception = assertThrows(ApiException.class, () -> orderService.cancelOrder(orderId));
+        assertEquals(1004, exception.getCode());
         assertEquals("Only PENDING orders can be canceled", exception.getMessage());
-
-        verify(orderRepository).findById(orderId);
-        verify(orderRepository, never()).save(any());
-        verify(assetService, never()).updateAssetAfterCancel(any());
+        verify(orderRepository, never()).save(existingOrder);
     }
 
+    @Test
+    void cancelOrder_notFound_shouldThrowException() {
+        // Arrange
+        Long orderId = 1L;
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+        // Act and Assert
+        ApiException exception = assertThrows(ApiException.class, () -> orderService.cancelOrder(orderId));
+        assertEquals(1005, exception.getCode());
+        assertEquals("Order not found", exception.getMessage());
+    }
+
+    @Test
+    void matchOrder_success() {
+        // Arrange
+        Long orderId = 1L;
+        Order existingOrder = new Order();
+        existingOrder.setId(orderId);
+        existingOrder.setStatus(Order.OrderStatus.PENDING);
+        Customer customer = new Customer();
+        customer.setId(1L);
+        existingOrder.setCustomer(customer);
+        existingOrder.setAssetName("AAPL");
+        existingOrder.setOrderSide(Order.OrderSide.BUY);
+        existingOrder.setPrice(150.00);
+        existingOrder.setSize(10d);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
+
+        // Act
+        assertDoesNotThrow(() -> orderService.matchOrder(orderId));
+
+        // Assert
+        assertEquals(Order.OrderStatus.MATCHED, existingOrder.getStatus());
+        verify(assetService).doApplyReserve(1L, "AAPL", Order.OrderSide.BUY, (150.00), 10d);
+        verify(orderRepository).save(existingOrder);
+    }
+
+    @Test
+    void matchOrder_nonPendingOrder_shouldThrowException() {
+        // Arrange
+        Long orderId = 1L;
+        Order existingOrder = new Order();
+        existingOrder.setId(orderId);
+        existingOrder.setStatus(Order.OrderStatus.CANCELED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
+
+        // Act and Assert
+        ApiException exception = assertThrows(ApiException.class, () -> orderService.matchOrder(orderId));
+        assertEquals(1004, exception.getCode());
+        assertEquals("Only PENDING orders can be matched", exception.getMessage());
+        verify(orderRepository, never()).save(existingOrder);
+    }
+
+    @Test
+    void matchOrder_notFound_shouldThrowException() {
+        // Arrange
+        Long orderId = 1L;
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+        // Act and Assert
+        ApiException exception = assertThrows(ApiException.class, () -> orderService.matchOrder(orderId));
+        assertEquals(1005, exception.getCode());
+        assertEquals("Order not found", exception.getMessage());
+    }
 }

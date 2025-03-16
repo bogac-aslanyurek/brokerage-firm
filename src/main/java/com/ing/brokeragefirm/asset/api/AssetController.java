@@ -5,6 +5,7 @@ import com.ing.brokeragefirm.asset.domain.Asset;
 import com.ing.brokeragefirm.asset.service.AssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ public class AssetController {
     }
 
     @PostMapping("/create")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Asset> createAsset(@RequestBody CreateAssetRequest request) {
         return ResponseEntity.ok(assetService.createAsset(request.customerId(), request.assetName(), request.assetSize()));
 

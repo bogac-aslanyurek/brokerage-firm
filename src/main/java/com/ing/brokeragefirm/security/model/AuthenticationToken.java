@@ -1,4 +1,4 @@
-package com.ing.brokeragefirm.security.service;
+package com.ing.brokeragefirm.security.model;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,11 +1,11 @@
 package com.ing.brokeragefirm.order.domain;
 
+import com.ing.brokeragefirm.order.model.ListOrderRequest;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public interface OrderRepositoryCustom {
 
-     List<Order> searchOrders(Long customerId, LocalDateTime startDate, LocalDateTime endDate);
+     List<Order> searchOrders(ListOrderRequest request);
 
 }

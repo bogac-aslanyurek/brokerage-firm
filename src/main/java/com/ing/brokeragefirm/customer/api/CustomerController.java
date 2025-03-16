@@ -1,6 +1,8 @@
 package com.ing.brokeragefirm.customer.api;
 
 import com.ing.brokeragefirm.customer.domain.Customer;
+import com.ing.brokeragefirm.customer.model.CreateCustomerRequest;
+import com.ing.brokeragefirm.customer.model.CustomerDto;
 import com.ing.brokeragefirm.customer.service.CustomerService;
 import com.ing.brokeragefirm.security.domain.AuthPrincipal;
 import com.ing.brokeragefirm.security.service.SecurityService;
