@@ -15,9 +15,12 @@ Application will start running on port 8080.
 All endpoints are secured with [Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication). 
 
 Each customer has username/password pair to use in basic
-authentication. There are 2 authorities granted by authentication: USER, ADMIN
+authentication. When calling an endpoint with customer user, you need to send these username/password pair for 
+Basic Authentication. This username and password are set by admin when creating customer.
 
-You can call all endpoints with ADMIN authority. following endpoints are accessible with ADMIN **only**:
+There are 2 authorities granted by authentication: USER, ADMIN
+
+All endpoints are available for ADMIN authority. Following endpoints are accessible **only** with ADMIN authority :
 
 * POST/assets/create
 * POST /customers/create
