@@ -14,7 +14,8 @@ Application will start running on port 8080.
 
 All endpoints are secured with [Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication). 
 
-There are 2 authorities granted by authentication: USER, ADMIN
+Each customer has username/password pair to use in basic
+authentication. There are 2 authorities granted by authentication: USER, ADMIN
 
 You can call all endpoints with ADMIN authority. following endpoints are accessible with ADMIN **only**:
 
@@ -32,8 +33,7 @@ Predefined admin credentials are:
 
 ## How to Use
 
-First you need to create customer using admin credentials. Each customer has username/password pair to use in basic
-authentication. Sample request is as follows:
+First you need to create customer using admin credentials.  Sample request is as follows:
 
 ```shell
 curl 'http://localhost:8080/customers/create' \
