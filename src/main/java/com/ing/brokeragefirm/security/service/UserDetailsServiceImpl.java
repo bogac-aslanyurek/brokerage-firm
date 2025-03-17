@@ -27,6 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             token.setPassword(principal.getPassword());
             token.setRealmObjectId(principal.getRealmObjectId());
             token.setGrantedAuthority(principal.getRealm().name());
+            token.setRealm(principal.getRealm());
             return token;
         }
         return null;

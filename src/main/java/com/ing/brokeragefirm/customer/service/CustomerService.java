@@ -16,7 +16,6 @@ public class CustomerService {
         this.customerRepository = customerRepository;
     }
 
-
     public Customer getCustomer(Long customerId) {
         if (customerId == null) {
             throw new ApiException(1001, "Customer not found");

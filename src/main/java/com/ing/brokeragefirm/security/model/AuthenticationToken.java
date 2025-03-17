@@ -1,5 +1,6 @@
 package com.ing.brokeragefirm.security.model;
 
+import com.ing.brokeragefirm.security.domain.AuthRealm;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +18,7 @@ public class AuthenticationToken implements UserDetails {
     private String realmObjectId;
     private String username;
     private String password;
+    private AuthRealm realm;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

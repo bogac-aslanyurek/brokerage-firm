@@ -34,6 +34,10 @@ public class AssetService {
 
         if (Order.OrderSide.BUY.equals(orderSide)) {
 
+            if (assetName.equals("TRY")) {
+                throw new ApiException(1006, "Invalid order, cannot buy TRY asset");
+            }
+
             if (tryAsset.getUsableSize().compareTo(orderTotalPrice) < 0) {
                 throw new ApiException(1003, "Insufficient {0} asset for the order", "TRY");
             }

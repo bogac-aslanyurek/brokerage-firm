@@ -3,6 +3,8 @@ package com.ing.brokeragefirm.asset.api;
 
 import com.ing.brokeragefirm.asset.domain.Asset;
 import com.ing.brokeragefirm.asset.service.AssetService;
+import com.ing.brokeragefirm.exception.ApiException;
+import com.ing.brokeragefirm.security.service.SecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,10 +19,16 @@ import java.util.List;
 public class AssetController {
 
     private final AssetService assetService;
+    private final SecurityService securityService;
 
     @GetMapping("/list")
     @Transactional
     public ResponseEntity<List<Asset>> listAssets(@RequestParam("customerId") Long customerId) {
+        final Boolean isAuthorized = securityService.aclCheck(String.valueOf(customerId));
+        if(!isAuthorized) {
+            throw new ApiException(1007, "You are not authorized");
+        }
+
         return ResponseEntity.ok(assetService.listAssets(customerId));
     }
 

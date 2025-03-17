@@ -1,4 +1,4 @@
-package com.ing.brokeragefirm.security.config;
+package com.ing.brokeragefirm.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -6,6 +6,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -19,13 +20,6 @@ public class SecurityConfig {
 
         return http.authorizeHttpRequests((authorize) ->
                         authorize
-                                .requestMatchers("/h2-console/**")
-                                .permitAll()
-                                //                                        .anyRequest()
-                                //                                        .permitAll()
-                                //                                .requestMatchers("/customers/**")
-                                //                                .permitAll()
-                                //                            .permitAll()
                                 .anyRequest()
                                 .authenticated()
                 )
@@ -36,19 +30,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder encoder() {
-        return new PasswordEncoder() {
-            @Override
-            public String encode(CharSequence rawPassword) {
-                return rawPassword.toString();
-            }
-
-            @Override
-            public boolean matches(CharSequence rawPassword, String encodedPassword) {
-                if (rawPassword == null || encodedPassword == null) {
-                    return false;
-                }
-                return rawPassword.toString().equals(encodedPassword);
-            }
-        };
+        return NoOpPasswordEncoder.getInstance();
     }
 }
