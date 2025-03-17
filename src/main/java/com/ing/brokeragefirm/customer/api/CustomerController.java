@@ -27,7 +27,7 @@ public class CustomerController {
     @Transactional
     public ResponseEntity<CustomerDto> createCustomer(@RequestBody CreateCustomerRequest request) {
         Customer customer = customerService.createCustomer(request.name());
-        final AuthPrincipal principal = securityService.createPrincipal(customer.getId(), request.username(), request.password());
+        final AuthPrincipal principal = securityService.createPrincipal(String.valueOf(customer.getId()), request.username(), request.password());
         return ResponseEntity.ok(new CustomerDto(customer.getId(), customer.getName(), principal.getUsername()));
     }
 

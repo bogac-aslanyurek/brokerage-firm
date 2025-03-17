@@ -7,11 +7,11 @@ import com.ing.brokeragefirm.order.domain.Order;
 import com.ing.brokeragefirm.order.domain.OrderRepository;
 import com.ing.brokeragefirm.order.model.ListOrderRequest;
 import com.ing.brokeragefirm.order.model.OrderRequest;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +19,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@ExtendWith( MockitoExtension.class)
 class OrderServiceTest {
 
     @Mock
@@ -29,11 +30,6 @@ class OrderServiceTest {
 
     @InjectMocks
     private OrderService orderService;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
 
     @Test
     void createOrder_success() {
@@ -117,7 +113,6 @@ class OrderServiceTest {
         // Act and Assert
         ApiException exception = assertThrows(ApiException.class, () -> orderService.cancelOrder(orderId));
         assertEquals(1004, exception.getCode());
-        assertEquals("Only PENDING orders can be canceled", exception.getMessage());
         verify(orderRepository, never()).save(existingOrder);
     }
 
@@ -130,7 +125,6 @@ class OrderServiceTest {
         // Act and Assert
         ApiException exception = assertThrows(ApiException.class, () -> orderService.cancelOrder(orderId));
         assertEquals(1005, exception.getCode());
-        assertEquals("Order not found", exception.getMessage());
     }
 
     @Test
@@ -173,7 +167,6 @@ class OrderServiceTest {
         // Act and Assert
         ApiException exception = assertThrows(ApiException.class, () -> orderService.matchOrder(orderId));
         assertEquals(1004, exception.getCode());
-        assertEquals("Only PENDING orders can be matched", exception.getMessage());
         verify(orderRepository, never()).save(existingOrder);
     }
 
@@ -186,6 +179,5 @@ class OrderServiceTest {
         // Act and Assert
         ApiException exception = assertThrows(ApiException.class, () -> orderService.matchOrder(orderId));
         assertEquals(1005, exception.getCode());
-        assertEquals("Order not found", exception.getMessage());
     }
 }

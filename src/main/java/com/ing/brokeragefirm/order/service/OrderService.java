@@ -51,6 +51,7 @@ public class OrderService {
     public void cancelOrder(Long id) {
         Order orderRequest = orderRepository.findById(id)
                 .orElseThrow(() -> new ApiException(1005, "Order not found"));
+
         if (Order.OrderStatus.PENDING.equals(orderRequest.getStatus())) {
             orderRequest.setStatus(Order.OrderStatus.CANCELED);
             orderRepository.save(orderRequest);

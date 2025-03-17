@@ -14,10 +14,10 @@ public class SecurityService {
     private final PasswordEncoder encoder;
     private final AuthPrincipalRepository authPrincipalRepository;
 
-    public AuthPrincipal createPrincipal(Long id, String username, String password) {
+    public AuthPrincipal createPrincipal(String realmObjectId, String username, String password) {
 
         AuthPrincipal principal = new AuthPrincipal();
-        principal.setRealmObjectId(String.valueOf(id));
+        principal.setRealmObjectId((realmObjectId));
         principal.setRealm(AuthRealm.USER);
         principal.setUsername(username);
         principal.setPassword(encoder.encode(password));
