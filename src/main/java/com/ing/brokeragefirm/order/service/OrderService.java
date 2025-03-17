@@ -8,7 +8,6 @@ import com.ing.brokeragefirm.order.domain.OrderRepository;
 import com.ing.brokeragefirm.order.model.ListOrderRequest;
 import com.ing.brokeragefirm.order.model.OrderRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,7 +62,6 @@ public class OrderService {
     }
 
     @Transactional
-    @PreAuthorize( "hasAuthority('ADMIN')")
     public void matchOrder(Long id) {
         Order orderRequest = orderRepository.findById(id)
                 .orElseThrow(() -> new ApiException(1005, "Order not found"));

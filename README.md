@@ -16,11 +16,18 @@ All endpoints are secured with [Basic Authentication](https://en.wikipedia.org/w
 
 There are 2 authorities granted by authentication: USER, ADMIN
 
-You can call all endpoints with ADMIN authority. You can create/list new customers and match orders, with ADMIN **only**.
+You can call all endpoints with ADMIN authority. following endpoints are accessible with ADMIN **only**:
+
+* POST/assets/create
+* POST /customers/create
+* GET /customers/list
+* POST /orders/{id}/match
+
 
 Predefined admin credentials are:
 
 **Username**: admin
+
 **Password**: admin
 
 ## How to Use
